@@ -14,15 +14,15 @@ class Api::V1::UsersController < ApplicationController
   end
 
   def college
-    College.find(user_params[:college_id])
+    @_college ||= College.find(user_params[:college_id]) rescue nil
   end
 
   def exam
-    @_exam ||= college&.exams.find(user_params[:exam_id])
+    @_exam ||= college&.exams.find(user_params[:exam_id]) rescue nil
   end
 
   def start_time
-    @_start_time = DateTime.parse(user_params[:start_time]) rescue nil
+    @_start_time ||= DateTime.parse(user_params[:start_time]) rescue nil
   end
 
   def user
