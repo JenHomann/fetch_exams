@@ -1,9 +1,13 @@
 class Api::V1::UsersController < ApplicationController
+  before_action :verify_college
+  before_action :verify_exam
+  before_action :valid_exam?
+
   def verify
-    if valid_exam? && user.assign(exam)
+    if user.valid? && user.assign(exam)
       render status: :ok
     else
-      render status: :bad_request
+      render json: { error: "Unable to assign user to exam #{user_params[:exam_id]}. #{user.errors.full_messages.to_sentence}" }.to_json, status: :bad_request
     end
   end
 
@@ -14,15 +18,17 @@ class Api::V1::UsersController < ApplicationController
   end
 
   def college
-    @_college ||= College.find(user_params[:college_id]) rescue nil
+    @_college ||= College.find(user_params[:college_id])
   end
 
   def exam
-    @_exam ||= college&.exams.find(user_params[:exam_id]) rescue nil
+    @_exam ||= college&.exams.find(user_params[:exam_id])
   end
 
   def start_time
-    @_start_time ||= DateTime.parse(user_params[:start_time]) rescue nil
+    @_start_time ||= DateTime.parse(user_params[:start_time])
+  rescue
+    render json: { error: "Invalid start time for exam: #{user_params[:exam_id]}" }.to_json, status: :bad_request and return
   end
 
   def user
@@ -30,7 +36,20 @@ class Api::V1::UsersController < ApplicationController
   end
 
   def valid_exam?
-    return false if college.nil? || exam.nil? || start_time.nil?
-    exam.valid_start?(start_time)
+    unless exam.valid_start?(start_time)
+      render json: { error: "Invalid start time for exam: #{user_params[:exam_id]}" }.to_json, status: :bad_request
+    end
+  end
+
+  def verify_college
+    college.present?
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: "Invalid college id: #{user_params[:college_id]}" }.to_json, status: :bad_request
+  end
+
+  def verify_exam
+    exam.present?
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: "Invalid exam id: #{user_params[:exam_id]} for college: #{user_params[:college_id]}" }.to_json, status: :bad_request
   end
 end
